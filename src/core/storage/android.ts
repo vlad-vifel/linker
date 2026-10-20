@@ -41,8 +41,10 @@ async function listBackups(path: string): Promise<BackupInfo[]> {
 }
 
 async function copyReplacing(from: string, to: string) {
-    await Filesystem.deleteFile({ path: to }).catch(() => null);
-    await Filesystem.copy({ from, to });
+    const tmp = `${to}.tmp`;
+    await Filesystem.deleteFile({ path: tmp }).catch(() => null);
+    await Filesystem.copy({ from, to: tmp });
+    await Filesystem.rename({ from: tmp, to });
 }
 
 async function pick(action: () => Promise<{ path: string | null }>) {
@@ -75,7 +77,9 @@ export const androidAdapter: StorageAdapter = {
             if ((await statOrNull(dirname(target)))?.type !== 'directory') {
                 throw new StorageError('NO_DIR');
             }
-            await Filesystem.writeFile({ path: target, data: content, encoding: Encoding.UTF8 });
+            const tmp = `${target}.tmp`;
+            await Filesystem.writeFile({ path: tmp, data: content, encoding: Encoding.UTF8 });
+            await Filesystem.rename({ from: tmp, to: target });
             return { path: target, mtime: (await Filesystem.stat({ path: target })).mtime };
         }),
     backup: (path, stamp) =>
